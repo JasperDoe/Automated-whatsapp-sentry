@@ -1,0 +1,23 @@
+{
+  "name": "whatsapp-sheet-bot",
+  "version": "1.0.0",
+  "description": "Sends WhatsApp group messages triggered by Google Sheet rows, via Baileys",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "groups": "node index.js groups",
+    "send": "node index.js send",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "express": "^4.21.0",
+    "pino": "^9.4.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
