@@ -6,6 +6,7 @@
 import express from 'express';
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import qrcode from 'qrcode-terminal';
+import QRCode from 'qrcode';
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
 
@@ -16,6 +17,7 @@ const GROUP_JID = process.env.GROUP_JID || '120363426707739092@g.us';
 const SHARED_SECRET = process.env.SHARED_SECRET || 'change-me-to-a-real-secret';
 
 let sock;
+let latestQr = null;
 
 async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
@@ -35,7 +37,8 @@ async function startSock() {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.log('\nScan this QR code with WhatsApp (Linked Devices):\n');
+      latestQr = qr;
+      console.log('\nNew QR generated — view it at your-render-url/qr\n');
       qrcode.generate(qr, { small: true });
     }
 
@@ -49,6 +52,7 @@ async function startSock() {
       if (shouldReconnect) setTimeout(startSock, 5000);
     } else if (connection === 'open') {
       console.log('✅ Connected to WhatsApp.');
+      latestQr = null;
     }
   });
 }
@@ -80,6 +84,27 @@ app.post('/send', async (req, res) => {
 });
 
 app.get('/health', (req, res) => res.json({ ok: true, connected: !!sock }));
+
+app.get('/qr', async (req, res) => {
+  if (!latestQr) {
+    return res.send('<h2>No QR right now — either already connected, or still starting up. Refresh in a few seconds.</h2><script>setTimeout(()=>location.reload(),3000)</script>');
+  }
+  try {
+    const dataUrl = await QRCode.toDataURL(latestQr, { width: 500, margin: 2 });
+    res.send(`
+      <html>
+        <head><meta http-equiv="refresh" content="20"></head>
+        <body style="display:flex;flex-direction:column;align-items:center;font-family:sans-serif;margin-top:40px;">
+          <h2>Scan with WhatsApp → Linked Devices</h2>
+          <img src="${dataUrl}" />
+          <p>This page auto-refreshes every 20s in case the code expires.</p>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    res.status(500).send('Error rendering QR: ' + err.message);
+  }
+});
 
 // Keep-alive: ping ourselves every 10 minutes so Render's free tier never spins
 // this instance down (which would wipe the WhatsApp session in ./auth).
