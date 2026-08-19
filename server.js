@@ -14,7 +14,7 @@ const AUTH_FOLDER = './auth';
 const PORT = process.env.PORT || 3000;
 
 const GROUP_JID = process.env.GROUP_JID || '120363426707739092@g.us';
-const SHARED_SECRET = process.env.SHARED_SECRET || 'change-me-to-a-real-secret';
+const SHARED_SECRET = process.env.SHARED_SECRET || 'deer';
 
 let sock;
 let latestQr = null;
