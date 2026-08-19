@@ -2,13 +2,6 @@
 //
 // Exposes POST /send so Google Apps Script (or anything else) can trigger a WhatsApp
 // group message over plain HTTP, instead of running a one-off CLI command.
-//
-// Run: node server.js
-// First run still needs the QR scan if ./auth doesn't already have a session
-// (if you already scanned via index.js, it'll reuse that session — no rescan needed).
-//
-// Test it locally once running:
-//   curl -X POST http://localhost:3000/send -H "Content-Type: application/json" -d "{\"message\":\"hello from curl\"}"
 
 import express from 'express';
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
@@ -19,11 +12,7 @@ import pino from 'pino';
 const AUTH_FOLDER = './auth';
 const PORT = process.env.PORT || 3000;
 
-// 🔧 Set this to your group's JID (get it from `node index.js`)
 const GROUP_JID = process.env.GROUP_JID || '120363426707739092@g.us';
-
-// 🔧 Simple shared-secret check so randoms on the internet can't use your bot
-// once this is deployed publicly. Set this to any string you like.
 const SHARED_SECRET = process.env.SHARED_SECRET || 'change-me-to-a-real-secret';
 
 let sock;
@@ -92,7 +81,26 @@ app.post('/send', async (req, res) => {
 
 app.get('/health', (req, res) => res.json({ ok: true, connected: !!sock }));
 
+// Keep-alive: ping ourselves every 10 minutes so Render's free tier never spins
+// this instance down (which would wipe the WhatsApp session in ./auth).
+function startKeepAlive() {
+  const selfUrl = process.env.RENDER_EXTERNAL_URL;
+  if (!selfUrl) {
+    console.log('RENDER_EXTERNAL_URL not set — skipping self-ping (fine for local dev).');
+    return;
+  }
+  setInterval(async () => {
+    try {
+      await fetch(`${selfUrl}/health`);
+      console.log('Keep-alive ping sent.');
+    } catch (err) {
+      console.log('Keep-alive ping failed:', err.message);
+    }
+  }, 10 * 60 * 1000); // every 10 minutes
+}
+
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
   startSock();
+  startKeepAlive();
 });
